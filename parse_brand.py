@@ -73,8 +73,10 @@ spark.udf.register("province_code_udf",lambda s:province_code_udf(s),"string")
 ##注册拼音udf
 spark.udf.register("get_pinyin_initail",lambda s:get_pinyin_initail(s),"string")
 
+
 df = spark.read.json(r'/Users/shuke/Desktop/顶新/92711130.json')
-tmp = df.createOrReplaceTempView('brand_shop_info')
+##合并小文件
+tmp = df.coalesce(1).createOrReplaceTempView('brand_shop_info')
 querys = """
        select shopid,taste,environment,
        service,price,star,shopName,
@@ -89,7 +91,8 @@ querys = """
        city_code_udf(AddressData.regeocode.addressComponent.city) as city_code,
        get_pinyin_initail(AddressData.regeocode.addressComponent.city) as city_initail,
        AddressData.regeocode.addressComponent.district as district_name,
-       AddressData.regeocode.addressComponent.township as township_name 
+       AddressData.regeocode.addressComponent.township as township_name,
+       substr(from_unixtime(unix_timestamp(),'yyyyMMdd HH:mm:ss'),1,8) as dayid
        from brand_shop_info"""
 
 querys1="""
@@ -100,9 +103,11 @@ querys1="""
          AddressData.regeocode.addressComponent.city as city_name,
          city_code_udf(AddressData.regeocode.addressComponent.city) as city_code,
          get_pinyin_initail(AddressData.regeocode.addressComponent.city) as city_initail
-         from  brand_shop_info   limit 10
+         from  brand_shop_info  
         """
-spark.sql(querys).write.format("hive").mode("overwrite").saveAsTable("xxzy.ods_shop_info_m")
+##门店基础数据写入hive
+res = spark.sql(querys)
+    #.write.format("hive").mode("overwrite").saveAsTable("xxzy.ods_shop_info_m")
 #获取城市编码
 
 
